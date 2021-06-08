@@ -1,0 +1,1062 @@
+/**
+ * Phần js xử lý bên trong cuộc chat
+ *
+ */
+
+
+var vnp_config = {
+    device: vnp_setting.browser.device
+};
+//console.log(vnp_config);
+/**
+ * các hàm sử dụng chung
+ */
+var commom = {
+    isEmptyObj: function (obj) {
+        if (jQuery.isEmptyObject(obj)){
+            return true;
+        }
+        return false;
+    }
+};
+
+/**
+ * trạng thái typing
+ */
+var typing_timeout = '';
+
+/**
+ * Thời gian Timeout để chờ cho hiển thị tin nhắn tiếp theo
+ * dùng cho bot chat
+ */
+var bot_delay = 0;
+
+/**
+ * Trạng thái gửi tin nhắn auto reply
+ */
+var auto_reply_timeout = '';
+
+/**
+ * các hàm liên quan đến socket
+ * @type {{listenChat: vnp_socket.listenChat}}
+ */
+var vnp_socket = {
+
+    setStatus: function(sts){
+        setTimeout(function () {
+            if (typeof boxchat != 'undefined'){
+                boxchat.socket_status = sts;
+                if (sts){
+                    boxchat.socket_error = '';
+                }else{
+                    boxchat.socket_error = 'Kiểm tra lại kết nối mạng và F5 trình duyệt';
+                }
+            }
+        }, 1000);
+    },
+
+    /**
+     * lắng nghe chat bắn đến
+     */
+    listenChat: function (raw) {
+        if (typeof raw != 'object') return;
+        //console.log(raw);
+        var send_id =  parseInt(raw.send_id)
+        var guest_id =  parseInt(raw.guest_id)
+        var send_name = raw.send_name
+        var message = raw.message
+        var to_id   = parseInt(raw.to_id)
+        var hide  = ('hide' in raw)? parseInt(raw.hide) : 0;
+        if (hide == 1) return;
+
+        var support_id = boxchat.conversation.support_id; // id nhân viên của website đang chat với cuộc chat này
+        var admin_id = boxchat.conversation.admin_id; // id tài khoản Owner của website đang chat với cuộc chat này
+        //console.log(vnp_setting.guest_id.id, send_id, to_id, support_id);
+        // điều kiện để tin nhắn được hiển thị trong khung chat là
+        // 1: tin nhắn của mình nhưng to_id phải đúng là chủ web hiện tại
+        // 2: tin nhắn chủ web nhắn đến nhưng send_id phải đúng là chủ web hiện tại
+        if (vnp_setting.guest_id.id == send_id){
+            // đây là tin nhắn của mình gửi đi, nhưng không phải gửi cho cuộc chat hiện tại thì cũng bỏ đi
+            if (to_id != support_id) return false;
+        }else{
+            // đâu là tin nhắn là ai đó gửi cho mình, nhưng send_id không phải support_id thì cũng loại
+            if (send_id != support_id && send_id != admin_id) return false;
+        }
+
+
+
+
+        if (typeof boxchat != 'undefined'){
+            if (!boxchat.isMaxBoxChat){
+                boxchat.countMsg += 1;
+                vnp.playSound();
+
+                /* thay đổi title bên ngoài */
+                var data = {
+                    name: 'change_title',
+                    title: 'thay đổi tiêu đề web để thông báo cho khách biết',
+                    data: {
+                        msg_count: boxchat.countMsg,
+                        msg: boxchat.conversation.support_name +' - '+ boxchat.countMsg + ' New message'
+                    }
+                };
+                vnp.postMessage(data);
+            }
+        }
+
+        if(vnp_setting.guest_id.id == send_id || vnp_setting.guest_id.id == to_id){
+            var is_bot = ('bot' in raw)? raw.bot : 0;
+            var bot_action = ('bot_action' in raw)? raw.bot_action : [];
+            var bot_type = ('bot_type' in raw)? raw.bot_type : '';
+
+            /**
+             * nếu tin nhắn bot là tranfer thì tin nhắn sau khi khách hàng gửi đi sẽ chuyển cuộc chat luôn cho nhân viên
+             */
+            if (is_bot && bot_type == 'tranfer'){
+                boxchat.meet_support = true;
+                boxchat.meet_support_thank = message;
+                return;
+            }
+            var rowchat = {
+                    admin_id : raw.admin_id,
+                    conversation_key : raw.conversation_id,
+                    create_at : raw.create_at,
+                    guest_id: raw.guest_id,
+                    id:raw.id,
+                    ip: raw.ip,
+                    message: message,
+                    owner: send_id,
+                    time:0,
+                    type: raw.type,
+                    hide: raw.hide,
+                    bot: is_bot,
+                    bot_type: bot_type,
+                    bot_action: bot_action
+                };
+
+            //console.log(is_bot, send_id, guest_id);
+            if (is_bot == 1 && send_id != guest_id){
+                //console.log('First: ', bot_delay);
+                bot_delay = parseInt(bot_delay) + 1.5;
+                boxchat.is_typing = true;
+                /** cuộn xuống dưới thẻ div */
+                vnp.scrollDiv()
+                setTimeout(function () {
+                    boxchat.data_message.push(rowchat)
+                    bot_delay -= 1.5;
+
+                    /** cuộn xuống dưới thẻ div */
+                    vnp.scrollDiv()
+                    if (bot_delay <= 0){
+                        bot_delay = 0;
+                        boxchat.is_typing = false;
+                    }
+
+                    //console.log('End: ', bot_delay);
+                }, bot_delay * 1000)
+
+
+            }else{
+                boxchat.data_message.push(rowchat)
+                /** cuộn xuống dưới thẻ div */
+                vnp.scrollDiv()
+
+                boxchat.is_typing = false;
+            }
+
+            // neus nhận được cuộc chat thì set typing = false
+            //boxchat.is_typing = false;
+
+            /** nếu tin nhắn có âm thành thì hiển thị âm thanh */
+            var sound = raw.sound || '';
+            if (sound == 'buzz'){
+                vnp.playSoundBuzz();
+            }
+
+
+        }
+
+        // nếu nhận tin nhắn là của mình gửi đi thì
+        // check xem chủ web có cài đặt trả lời tự đông không,
+        // nếu có thì lấy ra luôn để trả lời
+        if(vnp_setting.guest_id.id == send_id){
+
+            if(boxchat.setting.autoreply.val){
+
+                // check xem đang ở câu trả lời bao nhiêu, để lấy câu trả lời tiếp theo
+                var current_answer = vnp.getCookie('vnp_autoreply_' + to_id);
+                //console.log(current_answer);
+                var vitri = 0;
+                if (current_answer !== undefined){
+                    vitri = parseInt(current_answer) - 1;
+                }else{
+
+                    // vì không lấy được cookie do không set đc cookie nên dùng biến ở data để check xem đang ở vị trí nào
+                    if (boxchat.vitri_auto_reply == 0){
+                        vitri = 0;
+                    }else{
+                        vitri = boxchat.vitri_auto_reply;
+                    }
+                }
+
+                if (typeof boxchat.setting.autoreply.message[vitri] == 'object'){
+                    // tạo tin nhắn gắn vào boxchat
+                    clearTimeout(auto_reply_timeout);
+                    auto_reply_timeout = setTimeout(function () {
+                        var msg = boxchat.setting.autoreply.message[vitri].msg;
+                        var rowchat = {
+                            admin_id : raw.admin_id,
+                            conversation_key : raw.conversation_id,
+                            create_at : raw.create_at,
+                            guest_id: raw.guest_id,
+                            id:0,
+                            ip: raw.ip,
+                            message: msg,
+                            owner: to_id,
+                            time:0,
+                            type: 'text'
+                        };
+                        boxchat.data_message.push(rowchat)
+
+                        /** cuộn xuống dưới thẻ div */
+                        vnp.scrollDiv()
+
+                        // set cookie
+                        vnp.setCookie({
+                            name: 'vnp_autoreply_' + to_id,
+                            value: vitri + 2,
+                            expires: 30,
+                            type: 'm'
+                        });
+
+                        boxchat.vitri_auto_reply += 1;// set vào đây để so sánh với cookie
+
+                        // gửi tin nhắn lên server để lưu tin nhắn trả lời tự động này lại
+                        if (raw.admin_id == 2154 || raw.admin_id == 1646 || raw.admin_id == 46){
+                            if (!document.hidden){
+                                boxchat.sendAutoReply('▸' + msg);
+                            }
+                        }
+
+                    }, 2000);
+
+                }
+            }
+        }
+    },
+
+    /**
+     * notifi
+     */
+    listenNotifi: function (raw) {
+        var _type = raw.type || '';
+        //console.log(raw);
+        switch (_type){
+            // nhân viên hỗ trợ chủ động dừng cuộc chat
+            case 'stopchat':
+                // kiểm tra xem to_id có phải là cuộc chat hiện tại không
+                // nếu đúng thì mới cho dừng cuộc chat
+                var to_id = parseInt(raw.raw.to_id);
+                var raw_admin_id = parseInt(raw.raw.admin_id);
+                var support_id = boxchat.conversation.support_id;
+                var admin_id = boxchat.conversation.admin_id;
+                //if (to_id == support_id){
+                if (raw_admin_id == admin_id){
+                    if(boxchat.setting.aftersurvery.val){
+                        boxchat.stopChat = false; // bỏ màn hình stopchat xuống
+                        boxchat.show_survey = true; // bật survey lên
+                        boxchat.support_stopchat = true;
+
+                        setTimeout(function () {
+                            boxchat.support_stopchat = false;
+                        }, 5000);
+                        boxchat.getSurvey();
+                    }else{
+                        boxchat.startChatAgain = true;
+                    }
+                }
+                break;
+            // nhân viên hỗ trợ ban khách hàng
+            case 'banned':
+                /**
+                 * Kiểm tra nếu cuộc chat đúng của người chủ đang banned thì mới stop cuộc chat
+                 */
+                var to_id = parseInt(raw.raw.support_id);
+                var support_id = boxchat.conversation.support_id;
+                if (to_id == support_id){
+                    boxchat.stopConversation();
+                }
+                break;
+            // nhân viên hỗ trợ chuyển cuộc chat cho nhân viên khác
+            case 'tranfer':
+                /**
+                 * Chuyển chat cũng phải check nếu admin_id cũ khớp với admin_id mới thì mới chấp nhận chuyển
+                 */
+                var admin_id_current = parseInt(boxchat.conversation.admin_id); // admin_id được tạo từ đầu
+                var admin_id_new = parseInt(raw.raw.admin_id); // admin_id được bắn lại mới
+                if (admin_id_current == admin_id_new) {
+                    boxchat.tranferChat(raw.conversation);
+                }
+                break;
+            // chủ website chủ động chat với khách hàng
+            case 'start_chat':
+                //console.log('ok');
+                /**
+                 * kiểm tra nếu cuộc chat cũ có admin_id ==  admin_id cuộc chat mới tạo thì mới cho đổi thông tin, không thì thôi
+                 */
+                var admin_id_current = parseInt(boxchat.conversation.admin_id); // admin_id được tạo từ đầu
+                var admin_id_new = parseInt(raw.conversation.admin_id); // admin_id được bắn lại mới
+                if (admin_id_current == admin_id_new){
+                    boxchat.conversation = raw.conversation;
+                    boxchat.startChat = true;
+                    boxchat.startChatAgain = false;
+                    vnp.changeSizeMax(); // auto bật boxchat khi chủ web chat cho khách hàng
+
+                    // nếu có cài tính năng: Ẩn boxchat cho đến khi có một hành động gọi bật khung chat thì phải cho hiện lên
+                    vnp.action_visible(false);
+                }
+                break;
+
+            case 'remove_msg':
+                var id = parseInt(raw.raw.id);
+                for (var i in boxchat.data_message){
+                    if (boxchat.data_message[i].id == id){
+                        boxchat.data_message.splice(i,  1);
+                        break;
+                    }
+                }
+                break;
+        }
+    },
+
+
+    /**
+     * typing
+     */
+    listenTyping: function (raw) {
+        //console.log('Typing:', raw);
+        boxchat.is_typing = true;
+        clearTimeout(typing_timeout);
+        typing_timeout = setTimeout(function (){
+            boxchat.is_typing = false;
+        }, 5000);
+    }
+};
+
+var vnp = {
+
+    /**
+     * reset auto open boxchat
+     */
+    resetAutoOpenBoxchat: function (id) {
+        try {
+            var ls = window.localStorage;
+            var d = new Date();
+            var current_date = d.getDate() +'-'+ (d.getMonth() + 1) +'-'+ d.getFullYear();
+            var ls_count = ls.getItem('vnp_open_count_'+id) || 0;
+            var ls_date = ls.getItem('vnp_date');
+            if (ls_date != current_date){
+                ls.setItem('vnp_open_count_'+ id, 0);
+                ls.setItem('vnp_date', current_date);
+                ls.setItem('vnp_popup_phone_' + id, 0);
+            }
+        }catch (err){
+            console.log(err);
+        }
+
+    },
+
+    /**
+     * get vnp_opem_count
+     */
+    getVnpOpenCount: function (id) {
+        try{
+            var ls = window.localStorage;
+            var vnp_count = parseInt(ls.getItem('vnp_open_count_'+ id)) || 0;
+            return vnp_count;
+        }catch (err){
+            console.log(err);
+        }
+
+        return 0;
+    },
+
+    /**
+     * set vnp_open_count
+     */
+    setVnpOpenCount: function (id) {
+        try{
+            var ls = window.localStorage;
+            var vnp_count = parseInt(ls.getItem('vnp_open_count_'+ id)) || 0;
+            ls.setItem('vnp_open_count_'+ id,( vnp_count + 1));
+        }catch (err){
+            console.log(err);
+        }
+    },
+
+    getPopupCount: function (id) {
+        try{
+            var ls = window.localStorage;
+            var vnp_count = parseInt(ls.getItem('vnp_popup_phone_'+ id)) || 0;
+            return vnp_count;
+        }catch (err){
+            console.log(err);
+        }
+
+        return 0;
+    },
+    setPopupCount: function (id) {
+        try{
+            var ls = window.localStorage;
+            ls.setItem('vnp_popup_phone_'+ id,1);
+        }catch (err){
+            console.log(err);
+        }
+    },
+
+
+
+    /**
+     * Set cookie
+     */
+    setCookie: function (obj) {
+        var d = new Date();
+        var _name = obj.name || '';
+        var _value = obj.value || '';
+        var _expire = obj.expires || '';
+        var _type = obj.type || 'd';
+        var _time = 0;
+        if(_type == 'm'){
+            _time = (_expire*60*1000);
+        }else{
+            _time =  (_expire*24*60*60*1000);
+        }
+        d.setTime(d.getTime() +_time );
+        var expires = "expires="+d.toUTCString();
+        document.cookie = _name + "=" + _value + "; secure=false; " + expires +';path=/; samesite=None; domain=.vchat.vn';
+    },
+
+    /**
+     * get Cookie
+     */
+    getCookie: function (name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length == 2) return parts.pop().split(";").shift();
+    },
+
+    /**
+     * Set guest id vào cookie ở trình duyệt của khách
+     */
+    setGuestId : function(id){
+        var data = {
+            name: 'set_guest_id',
+            title: 'Cập nhật guest id vào website',
+            data: {
+                guest_id: id
+            }
+        };
+        if (id > 0){
+            this.postMessage(data);
+        }
+    },
+
+    /**
+     * thực thi hành động bắn ra bên ngoài trạng thái của boxchat
+     * @param val
+     */
+    action_visible: function (val) {
+        var data = {
+            name: 'visible_chat',
+            title: 'Trạng thái nút chat hiển thị hay không',
+            data: {
+                visible : val
+            }
+        };
+        this.postMessage(data);
+    },
+
+    /**
+     * Thực thi tính năng ẩn cuộc chat
+     */
+    visible_chat: function (obj) {
+        var visible = false; // mặc định cho hiện button chat
+        if ('visible_chat' in obj){
+            visible = obj.visible_chat.val;
+        }
+        vnp.action_visible(visible)
+    },
+
+
+    /**
+     * remove effective
+     */
+    removeEffective: function () {
+        document.getElementById('embed_circle').remove();
+        document.getElementById('embed_fill').remove();
+    },
+
+    /**
+     * Check embed and Process setting embed
+     */
+    processSettingEmbed: function () {
+        var _script = '';
+        if ('embed' in vnp_setting.setting) _script = vnp_setting.setting.embed;
+
+        if(_script != '' && _script != null){
+            var data = {
+                name: 'embed',
+                title: 'Mã nhúng bên thứ 3',
+                data: {
+                    scr : _script
+                }
+            };
+
+            this.postMessage(data);
+        }
+    },
+
+    /**
+     * Function post 1 message ra bên ngoài để cập nhật giao diện
+     * cấu trúc của data
+     * data = {
+     *      'name' : tên hành động cần thực thi,
+     *      'title': tiêu đề mô tả hành động này,
+     *      'data': {
+     *          // dữ liệu truyền ra bên ngoài để xử lý
+     *      }
+     * }
+     */
+    postMessage: function (data) {
+        if (typeof  data == 'object'){
+            parent.postMessage(data, "*");
+        }
+    },
+
+    /**
+     * thay đổi vị trí hiển thị của khung chat
+     */
+    changePosition: function () {
+        var position = 'right';
+        if (typeof vnp_setting.setting.size == 'object'){
+            var data = {
+                name: 'change_position',
+                title: 'thay đổi vị trí hiển thị của khung chat',
+                data: {
+                    position: vnp_setting.setting.size.box_position,
+                    space: vnp_setting.setting.size.box_space || {}
+                }
+            };
+
+            this.postMessage(data);
+        }
+    },
+
+    /**
+     * Thay đổi kích thước khung chat
+     * @param obj
+     */
+    changeSizeMin: function (obj) {
+        var w = h = 90;
+        if (typeof obj == 'object'){
+            w = obj.w || 90;
+            h = obj.h || 90;
+        }
+
+        var unit = 'px';
+
+        var data = {
+            name: 'change_size',
+            title: 'Thay đổi kích thước khung chat theo mặc định',
+            data: {
+                w: w + unit,
+                h: h + unit,
+                size: 'min',
+                position: {
+                    position: vnp_setting.setting.size.box_position,
+                    space: vnp_setting.setting.size.box_space || {}
+                }
+            }
+        };
+        $('#vnpchat').addClass('hide');
+        $('#vnpicon').removeClass('hide');
+        $('#embed_fill').removeClass('hide');
+        $('#embed_circle').removeClass('hide');
+        this.postMessage(data);
+
+        if (typeof boxchat != 'undefined'){
+            boxchat.isMaxBoxChat = false;
+        }
+    },
+
+    /**
+     * Bật khung chat dạng to
+     * thay đổi kích thước khung chat theo tỷ lệ cài đặt
+     */
+    changeSizeMax: function (obj) {
+        var box_size = {};
+        var w = '300px', h = '400px';
+        // nếu là trình duyệt mobile
+        if (vnp_config.device == 'mobile'){
+            w = '100%';
+            h = '100%';
+            if (typeof vnp_setting.setting.size.box_size.mobile == 'object'){
+                box_size = Object.assign({}, vnp_setting.setting.size.box_size.mobile.sub);
+            }
+
+            if (!commom.isEmptyObj(box_size)){
+                w = box_size.width.value +'%';
+                h = box_size.height.value +'%';
+            }
+
+        }else{
+            // nếu là trình duyệt web
+            w = '300px';
+            h = '400px';
+            if (typeof vnp_setting.setting.size.box_size.desktop == 'object'){
+                box_size = Object.assign({}, vnp_setting.setting.size.box_size.desktop.sub);
+            }
+            if (!commom.isEmptyObj(box_size)){
+                var bh = parseInt(box_size.height.value);
+                var bw = parseInt(box_size.width.value);
+                if (bh < 200) bh = 200;
+                if (bw < 250) bw = 250;
+                w = bw +'px';
+                h = bh +'px';
+            }
+        }
+
+        // tại chỗ này sẽ check số lần bật lên để dừng không bật nữa
+        if (typeof obj == 'object'){
+
+            var admin_id = parseInt(obj.admin_id) || 0;
+            var max = parseInt(obj.max) || 2;
+            if (max < 1 || max > 5) max = 2; // tối thiểu = 1 và tối đa = 5
+            // mảng khách hàng được bật nhiều lần
+            var white_list = [1646, 2240, 2154, 2460, 2514, 2544, 2588, 3170];
+            if (white_list.includes(admin_id)) max = 100;
+            if (admin_id > 0){
+                //var count_auto_open = parseInt(vnp.getCookie('vnp_auto_open_' + admin_id)) || 0;
+                var count_auto_open = vnp.getVnpOpenCount(admin_id);
+                if (count_auto_open < max){
+                    // event
+                    vnpEvent.autoOpenBoxchat();
+                    /*
+                    var cookie_auto_open = {
+                        name: 'vnp_auto_open_' + admin_id,
+                        value: count_auto_open + 1,
+                        expires: 1,
+                        type: 'd'
+                    };
+                    vnp.setCookie(cookie_auto_open);
+                    */
+                    vnp.setVnpOpenCount(admin_id);
+                }else{
+                    return false;
+                }
+            }
+        }else{
+            // event
+            vnpEvent.guestOpenBoxchat();
+        }
+
+        var data = {
+            name: 'change_size',
+            title: 'mở boxchat to lên',
+            data: {
+                w: w,
+                h: h,
+                size: 'max',
+                position: {
+                    position: vnp_setting.setting.size.box_position,
+                    space: vnp_setting.setting.size.box_space || {}
+                }
+            },
+            more: obj
+
+        };
+        this.postMessage(data);
+
+        // tự động cuộn chuột xuống khi bật boxchat lên
+        this.scrollDiv();
+
+        $('#vnpchat').removeClass('hide');
+        $('#vnpicon').addClass('hide');
+        $('#embed_fill').addClass('hide');
+        $('#embed_circle').addClass('hide');
+
+        boxchat.isMaxBoxChat = true;
+        boxchat.countMsg = 0;
+    },
+
+
+    /**
+     * Cập nhật ảnh eyechat cho khung chat
+     */
+    changeSizeEyeChat : function(obj){
+        var data = {
+            name: 'show_eyechat',
+            title: 'hiển thị eyechat lên',
+            data: {
+                src: obj.src
+            }
+        };
+        this.postMessage(data);
+    },
+
+    /**
+     * Play file âm thanh
+     */
+    playSound: function(){
+        var playsound = document.getElementById('vnp_sound');
+        if(playsound != null){
+            playsound.play();
+        }
+    },
+
+    /**
+     * Play file âm thanh buzz
+     */
+    playSoundBuzz: function(){
+        var playsound = document.getElementById('vnp_sound_buzz');
+        if(playsound != null){
+            playsound.play();
+            document.getElementById('vnp').classList.add('vnp_buzz');
+            setTimeout(function(){
+                document.getElementById('vnp').classList.remove('vnp_buzz');
+            }, 2000);
+        }
+    },
+
+    /**
+     * 
+     * Cuộn xuống dưới thẻ div nội dung cuộc chat
+     */
+    scrollDiv: function () {
+        setTimeout(function(){
+            var elm = document.getElementById('box_body')
+            if(elm != undefined){
+                var _outerH = parseInt(elm.scrollHeight)
+                var _scrH = parseInt(elm.clientHeight)
+                var scr_top = parseInt(_outerH - _scrH)
+                elm.scrollTo({
+                    top:scr_top,
+                    left:0,
+                    behavior:'smooth'
+                });
+            }
+        }, 100)
+    },
+
+    /**
+     * popup xin thông tin số điện thoại
+     * chỉ được bật 1 lần / ngày / 1 website
+     */
+    popupPhone: function(data){
+        // chỉ bật tối đa 1 lần / khách / website / ngày
+        var _admin_id = vnp_setting.admin_id;
+        var popup_count = vnp.getPopupCount(_admin_id);
+        if (popup_count <= 0){
+            var _time = parseInt(data.time);
+            if(_time <= 0 || _time > 50) _time = 20;
+            setTimeout(function () {
+                var _admin_id = boxchat.admin_id;
+                var _cookie = 'popup_phone_'+ _admin_id;
+                // save cookie là đã hiện lên
+                vnp.setPopupCount(_admin_id)
+                data.show_brand = boxchat.show_brand;
+                var dataPostMsg = {
+                    name: 'popupphone',
+                    title: 'xin thông tin số điện thoại',
+                    data: data
+                };
+                vnp.postMessage(dataPostMsg);
+
+            }, (_time * 1000));
+        }
+
+    },
+
+    /**
+     * process message define of customer
+     */
+    processMessageCustomer: function (data) {
+        var msg = data.msg || '';
+        if (msg == '') return;
+
+        var support_id = vnp_setting.dataConversation.support_id || 0;
+        var _g_name = vnp_setting.guest_id.name || '';
+        var _g_phone = vnp_setting.guest_id.phone || '';
+        var _g_email = vnp_setting.guest_id.email || '';
+        if (boxchat.startChat){
+            boxchat.text_message = msg;
+            boxchat.sendMessage('', 'submit');
+        }else{
+            if (!boxchat.startChat && _g_name != '' && (_g_phone != '' || _g_email != '')){
+                boxchat.startConversation();
+                var itv = setInterval(function () {
+                    if (boxchat.startChat){
+                        boxchat.text_message = msg;
+                        boxchat.sendMessage('', 'submit');
+                        clearInterval(itv);
+                    }
+                }, 500);
+                setTimeout(function () {
+                    clearInterval(itv);
+                }, 3000);
+            }
+        }
+
+    },
+
+
+};
+
+
+const vnp_event_name = 'vChat';
+
+var myvChatEvent = {
+
+    /* Call all event of GA, GTA */
+    callEvent:function (data) {
+        var _category = data.category;
+        var _action = data.action;
+        var _label = data.label;
+
+        /* bắn lên google */
+        if(typeof ga === 'function'){
+            ga('send', 'event', _category, _action, _label);
+        }
+        /* bắn lên gtag */
+        if(typeof gtag === 'function'){
+            gtag('event', _action, { 'event_category': _category, 'event_label': _label, 'value': '' });
+        }
+        /* bắn lên GTM */
+        if (typeof dataLayer === 'object'){
+            dataLayer.push({ 'event': vnp_event_name, 'category': _category, 'action': _action, 'label': _label, 'value': '' })
+        }
+        /* check bắn lên server của google ads qua gtag gọi hàm của bên website */
+        if(typeof gtag_report_convertion_loadvChat === 'function'){
+            gtag_report_convertion_loadvChat();
+        }
+    },
+
+    /* show vchat online in website */
+    loadvChat: function () {
+        var data = {
+            category : 'vChat Online Loaded',
+            action : 'Loaded',
+            label : 'Hiển thị vChat lên website',
+        };
+        setTimeout(function () {
+            myvChatEvent.callEvent(data);
+        }, 1000);
+
+    },
+
+    /* show vchat offline in website */
+    loadvChatOffline: function () {
+        var data = {
+            category : 'vChat Offline Loaded',
+            action : 'Loaded',
+            label : 'Hiển thị vChat offline lên website',
+        };
+        this.callEvent(data);
+    },
+
+    /* auto open boxchat */
+    autoOpenBoxchat: function () {
+        var data = {
+            category : 'Auto Open vChat',
+            action : 'Auto',
+            label : 'Tự động bật boxchat',
+        };
+        this.callEvent(data);
+    },
+
+    /* user open boxchat */
+    guestOpenBoxchat: function () {
+        var data = {
+            category : 'Guest Open vChat',
+            action : 'Click',
+            label : 'Khách hàng bật boxchat',
+        };
+        this.callEvent(data);
+    },
+
+    /* start conversation */
+    guestStartConversation: function () {
+        var data = {
+            category : 'Guest Start Chat',
+            action : 'Start Chat',
+            label : 'Khách hàng bắt đầu cuộc chat',
+        };
+        this.callEvent(data);
+    },
+
+    /* User stop conversation */
+    guestStopConversation: function () {
+        var data = {
+            category : 'Guest Stop Chat',
+            action : 'Stop Chat',
+            label : 'Khách hàng kết thúc cuộc chat',
+        };
+        this.callEvent(data);
+    },
+
+    /* send message */
+    guestSendMessage: function () {
+        var data = {
+            category : 'Guest Send Message',
+            action : 'Send Message',
+            label : 'Khách hàng gửi tin nhắn',
+        };
+        this.callEvent(data);
+    },
+
+    /* user click eye chat */
+    guestClickEyeChat: function () {
+        var data = {
+            category : 'Guest Click Eye Chat',
+            action : 'Click',
+            label : 'Khách hàng click vào ảnh mời chat',
+        };
+        this.callEvent(data);
+    },
+
+    /* user send survery after chat */
+    guestSendSurvey: function () {
+        var data = {
+            category : 'Guest Send Survey',
+            action : 'Send',
+            label : 'Khách hàng gửi khảo sát sau chat',
+        };
+        this.callEvent(data);
+    }
+
+};
+
+/**
+ *
+ * process event
+ */
+var vnpEvent = {
+    /* load vchat online */
+    loadvChat: function () {
+        var dataPostMsg = {
+            name: 'load_vchat',
+            title: 'Event load boxchat online',
+            data: {}
+        };
+        if (vnp_setting.package_id == 3) vnp.postMessage(dataPostMsg);
+        myvChatEvent.loadvChat();
+    },
+    /* load vchat offline */
+    loadvChatOffline: function () {
+        var dataPostMsg = {
+            name: 'load_vchat_offline',
+            title: 'Event load boxchat offline',
+            data: {}
+        };
+        if (vnp_setting.package_id == 3) vnp.postMessage(dataPostMsg);
+        myvChatEvent.loadvChatOffline();
+    },
+    /* auto open boxchat */
+    autoOpenBoxchat: function () {
+        var dataPostMsg = {
+            name: 'auto_open',
+            title: 'Auto open boxchat',
+            data: {}
+        };
+        if (vnp_setting.package_id == 3) vnp.postMessage(dataPostMsg);
+        myvChatEvent.autoOpenBoxchat();
+    },
+    /* guest open boxchat */
+    guestOpenBoxchat: function () {
+        var dataPostMsg = {
+            name: 'guest_open',
+            title: 'guest open boxchat',
+            data: {}
+        };
+        if (vnp_setting.package_id == 3) vnp.postMessage(dataPostMsg);
+        myvChatEvent.guestOpenBoxchat();
+    },
+    /* guest start chat */
+    guestStartConversation: function () {
+        var dataPostMsg = {
+            name: 'guest_start_chat',
+            title: 'guest start chat',
+            data: {}
+        };
+        if (vnp_setting.package_id == 3) vnp.postMessage(dataPostMsg);
+        myvChatEvent.guestStartConversation();
+    },
+    /* guest start chat */
+    guestStopConversation: function () {
+        var dataPostMsg = {
+            name: 'guest_stop_chat',
+            title: 'guest stop chat',
+            data: {}
+        };
+        if (vnp_setting.package_id == 3) vnp.postMessage(dataPostMsg);
+        myvChatEvent.guestStopConversation();
+    },
+    /* guest start chat */
+    guestSendMessage: function () {
+        var dataPostMsg = {
+            name: 'send_message',
+            title: 'guest send message',
+            data: {}
+        };
+        if (vnp_setting.package_id == 3) vnp.postMessage(dataPostMsg);
+        myvChatEvent.guestSendMessage();
+    },
+    /* guest send survey */
+    guestSendSurvey: function () {
+        var dataPostMsg = {
+            name: 'send_survey',
+            title: 'guest send survey',
+            data: {}
+        };
+        if (vnp_setting.package_id == 3) vnp.postMessage(dataPostMsg);
+        myvChatEvent.guestSendSurvey();
+    },
+};
+
+/**
+ *  lắng nghe sự kiện ở bên ngoài bắn vào
+ * */
+window.addEventListener('message', function (event) {
+    var vnp_event = event.data || '';
+    if (typeof  vnp_event == 'object'){
+        var vnp_name = vnp_event.name || '';
+        var vnp_data = vnp_event.data || {};
+        switch (vnp_name){
+            // show boxchat
+            case "showChat":
+                vnp.changeSizeMax();
+                break;
+
+            // hide boxchat
+            case "hideChat":
+                vnp.changeSizeMin();
+                break;
+
+            // save phone
+            case "save_phone":
+                boxchat.savePhone(vnp_data);
+                break;
+
+            // message customer
+            case "msg_customer":
+                vnp.processMessageCustomer(vnp_data);
+                break;
+
+            case "removeEff":
+                vnp.removeEffective();
+                break;
+
+        }
+    }
+});
+

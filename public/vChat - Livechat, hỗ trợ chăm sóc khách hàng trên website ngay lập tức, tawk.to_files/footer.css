@@ -1,0 +1,269 @@
+/*footer 1*/
+.footer {
+    padding-top: 3rem;
+    background-color: #f6f6f7;
+}
+
+.footerin_1_1 {
+    display: grid;
+    margin-bottom: 1.5rem;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.footerin_1_1 p.title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.footerin_1_1 p {
+    display: flex;
+    align-items: center;
+}
+
+.footerin_1_1 span {
+    font-weight: 300;
+    font-size: .875rem;
+    margin-left: .5rem;
+}
+
+.footerin_1_1 a {
+    color: black;
+}
+
+.footerin_1_1 i.fab.fa-apple {
+    font-weight: 400;
+    width: 15px;
+    font-size: 1.2rem;
+}
+
+
+.footerin_1_2 ul {
+    list-style: none;
+}
+.footerin_1_2 ul li *{
+    font-size: 15px;
+    font-weight: 300;
+}
+.footerin_1_2 p.title {
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.footerin_1_2 div {
+    margin-bottom: 1rem;
+}
+
+.footerin_1_2 a {
+    color: inherit !important;
+}
+
+.footerin_1_2 {
+    display: grid;
+    margin-bottom: 2rem;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.footerin_1_2 div {
+    /* flex-basis: 25%; */
+}
+
+.footerin_1_3 {
+    flex-direction: row;
+    display: -webkit-flex;
+    justify-content: space-between;
+}
+
+.footerin_1_3 div.left {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.footerin_1_3 div.left a {
+    padding: 0.4rem 1rem;
+    background-color: #1D86F3;
+    border-radius: .25rem;
+    border: 1px solid #1D86F3;
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.footerin_1_3 p {
+    margin-bottom: 0;
+    margin-right: 2rem;
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: normal;
+    display: inline-block;
+    width: -webkit-fill-available;
+}
+
+.footer_1 {
+    border-bottom: 1px solid #d4d4d7;
+}
+
+.footerin_1_3 a.icon {
+    margin-left: 1rem;
+    color: black;
+}
+
+.footerin_1_3 .right {
+    margin-right: 10rem;
+}
+
+.footerin_1_3 .right img {
+    margin-top: -.5rem;
+}
+
+/*footer 2*/
+.footerin_2_1 {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.footerin_2_1 p.left {
+    max-width: 22rem;
+    font-weight: 400;
+    font-size: .75rem;
+    color: #767581;
+}
+
+.footerin_2_1 p.right {
+    max-width: 22rem;
+    font-weight: 400;
+    font-size: .75rem;
+    color: #767581;
+}
+
+.footer_2 div.container {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+.footerin_2_1 p.left a {
+    font-weight: 700;
+    color: #767581;
+    font-size: 0.75rem;
+}
+
+.footerin_2_1 p.right a {
+    max-width: 22rem;
+    font-weight: 400;
+    font-size: .75rem;
+    color: #767581;
+}
+
+.footerin_2_1 p.right {
+    margin-bottom: 0;
+}
+
+/*end footer*/
+.footerin_1_1 a:hover {
+    color: black;
+}
+
+/*wrapper 14*/
+.wrapper_14 {
+    padding: 4rem 0 4rem 0;
+    text-align: center;
+    background-color: #f6f6f7;
+    border-bottom: 1px solid #d4d4d7;
+}
+
+.wrapper_14 a.createFree {
+    background-color: #1D86F3;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.25rem;
+    box-shadow: 0 1px 3px;
+    opacity: 1;
+    transition: 0.5s ease;
+    border: 1px solid #1D86F3;
+    padding-top: .75rem;
+    color: white !important;
+    font-weight: 500;
+}
+
+.wrapper_14 a.createFree:hover {
+    cursor: pointer;
+    opacity: 0.8;
+    color: white;
+}
+
+.wrapper_14 .container {
+    max-width: 38rem;
+}
+
+.wrapper_14 h5 {
+    margin-bottom: 2.5rem;
+    font-weight: 500;
+    font-size: 25px;
+}
+
+.wrapper_14 p {
+    margin-top: 2rem;
+    font-size: 18px;
+    line-height: 25px;
+    font-weight: 300;
+}
+
+input[type="email"]:focus {
+    box-shadow: 0 0 0 4px #ffd000;
+}
+
+.footerin_1_3 div.left a:hover {
+    background-color: #1874d4;
+    border-color: #1874d4;
+}
+
+@media (max-width: 1000px ) {
+    .footerin_1_1 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .footerin_1_2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .footerin_1_3 {
+        flex-direction: column;
+    }
+
+    .footerin_1_3 .right {
+        margin-bottom: .5rem;
+    }
+
+    .footerin_1_3 div.left {
+        justify-content: space-between;
+    }
+
+    .footerin_2_1 {
+        flex-direction: column;
+    }
+
+    .footerin_1_1 p.title {
+        font-size: .75rem;
+    }
+
+    .footerin_1_1 span {
+        font-size: .75rem;
+    }
+
+    .footerin_1_2 a {
+        font-size: .75rem;
+    }
+
+    .wrapper_14 h5 {
+        font-size: 15px;
+    }
+
+    .wrapper_14 .container {
+        width: 17rem !important;
+    }
+
+    .wrapper_14 a.createFree {
+        display: block;
+    }
+}

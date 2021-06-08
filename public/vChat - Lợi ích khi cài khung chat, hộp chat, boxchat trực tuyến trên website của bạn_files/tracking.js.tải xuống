@@ -1,0 +1,1161 @@
+
+/*
+ * Start: 8/1/2020
+ */
+
+/**
+ * Default config
+ */
+var __vnpDefault = {
+    mobile: window.matchMedia("only screen and (max-width: 760px)").matches,
+    transport: '//core.vchat.vn/transport/',
+    url: '//core.vchat.vn',
+    max: 10
+};
+
+var __default_title = document.title;
+var __new_title = '';
+var __change_title = null;
+var __data_phone = {}
+var __default_height_chat = 0; // chiều cao mặc định của khung chat
+
+
+/**
+ * APi
+ */
+__vnpAPI = {
+    openChat: function () {
+        __vnpFunction.showChat();
+    },
+
+    minisizeChat: function () {
+        __vnpFunction.hideChat();
+    },
+
+    stopConversation: function () {
+
+    },
+
+    showPopupPhone: function () {
+
+    },
+
+    closePopupPhone: function () {
+        __vnpFunction.closePhone();
+    },
+
+    sendMessage: function (msg) {
+        if (msg != ''){
+            msg = msg.replace(/script/gi, 'i');
+            msg = msg.replace(/onerror/gi, '');
+            msg = msg.replace(/src/gi, '');
+
+            this.openChat();
+
+            var dataMsg = {
+                name: 'msg_customer',
+                title: 'Tin nhắn chủ web tạo cho khách',
+                data: {
+                    msg: msg
+                }
+            };
+            __vnpFunction.postMessage(dataMsg);
+
+        }
+    },
+    removeEffective: function () {
+        var dataMsg = {
+            name: 'removeEff',
+            title: 'Xoá hiệu ứng',
+            data: {}
+        };
+        __vnpFunction.postMessage(dataMsg);
+    }
+};
+
+/**
+ * Call transport
+ */
+async function callTransport() {
+
+    var _transport = 0;
+    if (sessionStorage){
+        _transport = parseInt(sessionStorage.getItem('vnp_transport')) || 0;
+    }
+
+    if (_transport <=  0){
+        console.log('Get Transport');
+        if (document.location.host == 'v3.vn'){
+            __vnpDefault.transport = '//core.v3.vn/transport/';
+        }
+
+        await fetch(__vnpDefault.transport + __vnp.code)
+            .then(function (res) {
+                if (res.status !== 200) {
+                    console.log('Lỗi, mã lỗi ' + res.status);
+                    return;
+                }
+                // parse response data
+                res.json().then(function (data) {
+                    _transport = parseInt(data);
+                    if (_transport > 0){
+                        if (sessionStorage){
+                            sessionStorage.setItem('vnp_transport', _transport);
+                        }
+                    }
+                    __vnpFunction.init(_transport);
+                });
+            })
+            .catch(function (err) {
+                console.log('Hệ thống đang bảo trì trong ít phút');
+                __vnpFunction.init(_transport);
+            })
+    }else{
+        console.log('Transport');
+        __vnpFunction.init(_transport);
+    }
+
+
+}
+
+
+/**
+ * Function process boxchat
+ */
+__vnpFunction = {
+
+    /**
+     *
+     * get browser name and version
+     */
+    getBrowser: function () {
+        var nVer = navigator.appVersion;
+        var nAgt = navigator.userAgent;
+        var browserName  = navigator.appName;
+        var fullVersion  = ''+parseFloat(navigator.appVersion);
+        var nameOffset,verOffset,ix;
+
+        // In Opera 15+, the true version is after "OPR/"
+        if ((verOffset=nAgt.indexOf("OPR/"))!=-1) {
+            browserName = "Opera";
+            fullVersion = nAgt.substring(verOffset+4);
+        }
+        // In older Opera, the true version is after "Opera" or after "Version"
+        else if ((verOffset=nAgt.indexOf("Opera"))!=-1) {
+            browserName = "Opera";
+            fullVersion = nAgt.substring(verOffset+6);
+            if ((verOffset=nAgt.indexOf("Version"))!=-1)
+                fullVersion = nAgt.substring(verOffset+8);
+        }
+        // In MSIE, the true version is after "MSIE" in userAgent
+        else if ((verOffset=nAgt.indexOf("MSIE"))!=-1) {
+            browserName = "Microsoft Internet Explorer";
+            fullVersion = nAgt.substring(verOffset+5);
+        }
+        // In Chrome, the true version is after "Chrome"
+        else if ((verOffset=nAgt.indexOf("Chrome"))!=-1) {
+            browserName = "Chrome";
+            fullVersion = nAgt.substring(verOffset+7);
+        }
+        // In Safari, the true version is after "Safari" or after "Version"
+        else if ((verOffset=nAgt.indexOf("Safari"))!=-1) {
+            browserName = "Safari";
+            fullVersion = nAgt.substring(verOffset+7);
+            if ((verOffset=nAgt.indexOf("Version"))!=-1)
+                fullVersion = nAgt.substring(verOffset+8);
+        }
+        // In Firefox, the true version is after "Firefox"
+        else if ((verOffset=nAgt.indexOf("Firefox"))!=-1) {
+            browserName = "Firefox";
+            fullVersion = nAgt.substring(verOffset+8);
+        }
+        // In most other browsers, "name/version" is at the end of userAgent
+        else if ( (nameOffset=nAgt.lastIndexOf(' ')+1) <
+            (verOffset=nAgt.lastIndexOf('/')) )
+        {
+            browserName = nAgt.substring(nameOffset,verOffset);
+            fullVersion = nAgt.substring(verOffset+1);
+            if (browserName.toLowerCase()==browserName.toUpperCase()) {
+                browserName = navigator.appName;
+            }
+        }
+        // trim the fullVersion string at semicolon/space if present
+        if ((ix=fullVersion.indexOf(";"))!=-1)
+            fullVersion=fullVersion.substring(0,ix);
+        if ((ix=fullVersion.indexOf(" "))!=-1)
+            fullVersion=fullVersion.substring(0,ix);
+
+
+        return {
+            browser_name: browserName,
+            version: fullVersion
+        };
+    },
+
+
+    /**
+     * init code
+     */
+    init: function (transport_id) {
+
+        /** Luatvietnam */
+        if(__vnpDefault.mobile && __vnp.code == 4371) return false;
+
+        /**
+         * check tránh load nhiều lần nếu như khách hàng vô tình đặt nhiều hơn 1 mã nhúng
+         */
+        var _check = document.getElementById('vnp_check');
+        if (_check !== null) return
+
+        var vnpCheck = document.createElement('div');
+        vnpCheck.setAttribute("id", "vnp_check");
+        document.body.appendChild(vnpCheck);
+
+        /**
+         * Config server transport
+         *
+         */
+        var _server_id = parseInt(transport_id) || 0;
+        if (_server_id > 0 && _server_id <= __vnpDefault.max){
+            __vnpDefault.url = '//core' + _server_id + '.vchat.vn';
+        }
+
+        /* Nếu local thì chuyển lại domain ở local*/
+        if (document.location.host == 'v3.vn'){
+            __vnpDefault.url = '//core.v3.vn';
+        }
+
+
+        /**
+         * kiểm tra xem thông tin guest có được định nghĩa hay không
+         */
+        var guest_define = this.getGuestDefine();
+
+        /**
+         * kiểm tra xem có định nghĩa trước sale sẽ nhận cuộc chat không
+         */
+        var fix_sale  = this.getSale();
+
+
+        /**
+         *
+         * iframe boxchat
+         */
+        var vnpIframe = document.createElement("iframe");
+        vnpIframe.setAttribute('class', 'no_frame');
+        vnpIframe.setAttribute("id", "vnp_code_chat");
+        vnpIframe.setAttribute("rel", "nofollow");
+
+        /**
+         * các tham số truyền trên url
+         */
+        //var browser = __vnpFunction.getBrowser();
+        var referer = document.referrer || '';
+        var platform = window.navigator.platform || '';
+        var url = document.location.href || '';
+        var title = document.title || '';
+        var ls_vnp_guest_id = 0;
+        if (localStorage){
+            if (localStorage.getItem('__vnp_guest_id') != null){
+                ls_vnp_guest_id = parseInt(localStorage.getItem('__vnp_guest_id'));
+            }
+        }
+        var guest_id = __vnpFunction.getGuestId() || ls_vnp_guest_id;
+        var browser_name = '';
+        var version = '';
+        if (typeof  browser == 'object'){
+            //browser_name = browser.browser_name;
+            //version = browser.version;
+        }
+
+
+        var param_url = '';
+        param_url += '?code='+ __vnp.code;
+        param_url += '&jwt='+ __vnp.secret;
+        if (typeof __vnp.key != 'undefined'){
+            param_url += '&key='+ __vnp.key;
+        }
+        param_url += '&ref='+ referer;
+        param_url += '&plf='+ platform;
+        param_url += '&url='+ url;
+        param_url += '&tit='+ title;
+        //param_url += '&brs='+ browser_name;
+        //param_url += '&ver='+ version;
+        param_url += '&gid='+ guest_id;
+        param_url += '&gdf='+ JSON.stringify(guest_define);
+        param_url += '&fs=' + JSON.stringify(fix_sale);
+
+        vnpIframe.setAttribute("src", __vnpDefault.url + "/service/chat" + param_url);
+        vnpIframe.style.cssText = "width:100% !important; height:100% !important;border: none;margin:0";
+
+        /**
+         * element container boxchat
+         */
+        var vnpChat = document.createElement('div');
+        vnpChat.setAttribute('id', 'vnp_chat');
+        vnpChat.setAttribute('class', 'vnp_visible');
+        var textcss = 'z-index:2147483648;';
+        vnpChat.style.cssText = textcss +'position:fixed; bottom:0; width:1px;height:1px;visibility: unset !important;';
+
+        vnpChat.appendChild(vnpIframe);
+
+        /**
+         * element eyechat
+         */
+        var vnpEyeChat = document.createElement('div');
+        vnpEyeChat.setAttribute('id', 'vnp_eyechat');
+        vnpEyeChat.setAttribute('class', 'vnp_visible');
+        var textcss = 'z-index:2147483648;';
+        vnpEyeChat.style.cssText = textcss +'position:fixed; bottom:80px; max-height:250px;max-width: 300px;overflow:hidden;text-align: right;cursor: pointer;visibility: unset !important;';
+
+        /**
+         * append vào html website
+         */
+        if(document.body != null){            
+            document.body.appendChild(vnpEyeChat);
+            document.body.appendChild(vnpChat);
+        }
+    },
+
+    /**
+     * Set cookie
+     */
+    setCookie: function (obj) {
+        var d = new Date();
+        var _name = obj.name || '';
+        var _value = obj.value || '';
+        var _expire = obj.expires || '';
+        var _type = obj.type || 'd';
+        var _time = 0;
+        if(_type == 'm'){
+            _time = (_expire*60*1000);
+        }else{
+            _time =  (_expire*24*60*60*1000);
+        }
+        d.setTime(d.getTime() +_time );
+        var expires = "expires="+d.toUTCString();
+        document.cookie = _name + "=" + _value + ";secure=false; " + expires +';path=/; samesite=None; domain=.vchat.vn';
+        document.cookie = _name + "=" + _value + ";secure=false; " + expires +';path=/; samesite=None;';
+
+        if (__vnpDefault.url == '//core.v3.vn'){
+            document.cookie = _name + "=" + _value + ";secure=false; " + expires +';path=/; samesite=None; domain=.v3.vn';
+            document.cookie = _name + "=" + _value + ";secure=false; " + expires +';path=/; samesite=None;';
+        }
+    },
+
+    /**
+     * get Cookie
+     */
+    getCookie: function (name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length == 2) return parts.pop().split(";").shift();
+    },
+
+    /**
+     *
+     * Set guest id to cookie because someone browser deny save cookie like as safari
+     */
+    setGuestId: function (gid) {
+        var _obj_cookie = {
+            name : '_gta_uni',
+            value : '823749984.'+ gid + '.094934686275',
+            expires : 365,
+            type : 'd',
+        };
+        __vnpFunction.setCookie(_obj_cookie);
+
+        var d = new Date();
+        var _name = '__vnp_guest_id';
+        var _value = gid;
+        var _expire = 365;
+        var _type = 'd';
+        var _time = 0;
+        if(_type == 'm'){
+            _time = (_expire*60*1000);
+        }else{
+            _time =  (_expire*24*60*60*1000);
+        }
+        d.setTime(d.getTime() +_time );
+        var expires = "expires="+d.toUTCString();
+        document.cookie = _name + "=" + _value + ";secure=false; " + expires +';path=/; samesite=None;';
+
+        // set cả vào localstorage
+        if (localStorage){
+            localStorage.setItem('__vnp_guest_id', _value);
+        }
+
+    },
+
+    /**
+     * Get guest id from cookie
+     */
+    getGuestId: function () {
+        var _guest_id = __vnpFunction.getCookie('__vnp_guest_id') || 0;
+        return parseInt(_guest_id);
+    },
+
+
+    /**
+     *
+     * Call one function of website custormer when need
+     * this function call function name specified: vnpCallbackFunction(data)
+     */
+    callbackFunction: function (data) {
+        if(typeof vnpCallbackFunction === 'function'){
+            vnpCallbackFunction(data);
+        }
+    },
+
+
+    /**
+     * hàm lấy thông tin guest info đc định nghĩa trước
+     */
+    getGuestDefine: function () {
+        var guestDefine = {
+            name: '',
+            phone: '',
+            email: '',
+            address: ''
+        };
+        if(typeof vnp_guest_define != 'object'){
+            return '';
+        }else{
+            if ('name' in vnp_guest_define){
+                guestDefine.name = vnp_guest_define.name
+            }
+            if ('phone' in vnp_guest_define){
+                guestDefine.phone = vnp_guest_define.phone
+            }
+            if ('email' in vnp_guest_define){
+                guestDefine.email = vnp_guest_define.email
+            }
+            if ('address' in vnp_guest_define){
+                guestDefine.address = vnp_guest_define.address
+            }
+        }
+        return guestDefine;
+    },
+
+    /**
+     *  fix sale sẽ nhận cuộc chat này, cho dù có bắt đầu như nào thì sale đc fix sẽ nhận cuộc chat
+     */
+    getSale : function () {
+        var sale = {
+            id: 0
+        };
+        if(typeof vnp_fix_sale != 'object'){
+            return '';
+        }else{
+            if ('id' in vnp_fix_sale){
+                sale.id = vnp_fix_sale.id
+            }
+        }
+        return sale;
+    },
+
+    /**
+     * Tranfer data from out to in iframe boxchat
+     * when need tranfer or call function in boxchat then call this function
+     * structure data : {
+     *   name: 'action name', //require
+     *   title: '', //not require
+     *   data: {}, //require
+     * }
+     */
+    postMessage: function (data) {
+        var vnpIframe = document.getElementById('vnp_code_chat');
+        vnpIframe.contentWindow.postMessage(data, '*');
+    },
+
+    /**
+     * this is message show default in input chat off boxchat custermer
+     * function post one message to iframe
+     * this message is default message owner website setting for url hoặc category ...
+     * to use this function: owner web need declare 1 avariable js:
+     * var defaultMsgVnp = 'this is message default of owner website';
+     */
+    addMessageDefault: function () {
+        if (typeof defaultMsgVnp === 'string'){
+            if (defaultMsgVnp != ''){
+                var dataMsg = {
+                    name: 'msgDefaultOfCustomer',
+                    title: 'Tin nhắn mặc định mà chủ website tạo cho khách hàng',
+                    data: {
+                        msg: defaultMsgVnp
+                    }
+                };
+
+                __vnpFunction.postMessage(dataMsg);
+            }
+        }
+    },
+
+    /**
+     * Xử lý localstorage
+     */
+    setLocalStorage: function (obj) {
+        if(typeof obj == 'object'){
+            if ('name' in obj && 'val' in obj){
+                if (localStorage){
+                    localStorage.setItem(obj.name,  obj.val);
+                }
+            }
+        }
+    },
+    getLocalStorage: function (k) {
+        var response = '';
+        if (k != ''){
+            if (localStorage){
+                response = localStorage.getItem(k);
+            }
+        }
+
+        if (response != null) return response;
+        return '';
+    },
+
+    /**
+     * Check embed and Process setting embed
+     */
+    processSettingEmbed: function (data) {
+        var _script = data.scr || '';
+        if(_script != '' && _script != null){
+            var script_tag = document.createElement('script');
+            script_tag.type = 'text/javascript';
+            script_tag.text = _script;
+            document.body.appendChild(script_tag);
+        }
+    },
+
+    /**
+     * change size boxchat
+     * desktop: change for pixel
+     * mobile: change for %
+     */
+    changeSize: function (obj) {
+        var vnp_elm = document.getElementById('vnp_chat');
+        var _w = 100, _h = 100, _size = 'min';
+        _w = obj.w;
+        _h = obj.h;
+        _size = obj.size;
+
+
+
+        /**
+         * TH mobile. nếu khách cài đặt vị trí thì sẽ dẫn đến khung chat ở dạng 100% bị chờm ra khỏi lề, nên phải tính toán lại độ rộng và chiều cao
+         */
+        /*
+        if (__vnpDefault.mobile){
+            // tính toán lại chiều rộng
+            if (_w == '100%'){
+                var _left = parseInt(vnp_elm.style.left) || 0;
+                var _right = parseInt(vnp_elm.style.right) || 0;
+                var _total = _left + _right;
+
+                var fullWidth = window.outerWidth - _total;
+                _w = fullWidth +'px';
+            }
+
+            // tính toán lại chiều cao
+            if (_h == '100%'){
+                var _bottom = parseInt(vnp_elm.style.bottom) || 0;
+                var fullHeight = window.outerHeight - _bottom;
+                _h = fullHeight +'px';
+            }
+        }
+        */
+
+        /**
+         * Khi khung chat thu nhỏ thì ăn theo cài đặt vị trí
+         */
+        if (_size == 'min'){
+            __vnpFunction.changePosition(obj.position);
+        }
+
+        /**
+         * Khi hiện khung chat lên thì dù có cài đặt vị trí ở đâu thì cũng chỉ hiển thị xuống bottom = 0
+         */
+        if (_size == 'max'){
+            var opt_max = {
+                position: obj.position.position,
+                space: {
+                    bottom: {val: 0},
+                    left:  {val: 0},
+                    right:  {val: 0}
+                }
+            };
+            __vnpFunction.changePosition(opt_max);
+
+            /*
+            * Nếu size == max tức là click vào khung chat to lên thì ngắt thay đổi title
+            **/
+            __vnpFunction.closeChangeTitle();
+
+        }
+
+        vnp_elm.style.height  = _h;
+        vnp_elm.style.width = _w;
+
+
+    },
+
+    /**
+     * change position boxchat
+     */
+    changePosition: function (obj) {
+
+        var vnp_elm = document.getElementById('vnp_chat');
+        var vnp_eyechat = document.getElementById('vnp_eyechat');
+        var position = 'right';
+        if (obj.position != '') position = obj.position;
+
+        /**
+         * lấy cài đặt khoảng cách khung chat so vs màn hình
+         */
+        var spaceBottom = 0, spaceLeft = 0, spaceRight = 0, vnp_chat_height = 90;
+        if(typeof obj.space != 'undefined'){
+            if (typeof obj.space.bottom != 'undefined') spaceBottom = parseInt(obj.space.bottom.val);
+            if (typeof obj.space.left != 'undefined') spaceLeft = parseInt(obj.space.left.val);
+            if (typeof obj.space.right != 'undefined') spaceRight = parseInt(obj.space.right.val);
+            if (spaceBottom < 0 || spaceBottom > 400) spaceBottom = 0;
+            if (spaceLeft < 0 || spaceLeft > 400) spaceLeft = 0;
+            if (spaceRight < 0 || spaceRight > 400) spaceRight = 0;
+        }
+
+        // đoạn check này để khi bật boxchat lên và ẩn boxchat xuống thì vị trí của eye chat (nếu có) sẽ không bị thay đổi
+        vnp_chat_height = parseInt(vnp_elm.offsetHeight);
+        if (__default_height_chat == 0 && vnp_chat_height > 30){
+            __default_height_chat = vnp_chat_height;
+        }else{
+            vnp_chat_height = __default_height_chat;
+        }
+
+        vnp_elm.style.bottom = spaceBottom +'px';
+        if (vnp_eyechat != null) vnp_eyechat.style.bottom = (spaceBottom + vnp_chat_height) +'px';
+
+        if(position == 'right'){
+            vnp_elm.style.right = spaceRight +'px';
+            if (vnp_eyechat != null) vnp_eyechat.style.right = (spaceRight + 10) +'px';
+        }else{
+            vnp_elm.style.left  = spaceLeft +'px';
+            if (vnp_eyechat != null) vnp_eyechat.style.left = (spaceLeft + 10)  +'px';
+        }
+
+
+    },
+
+    /**
+     * show boxchat
+     */
+    showChat: function () {
+        this.remove_vnp_visible();
+
+        // bắn vào trong để gọi bật boxchat lên
+        var dataMsg = {
+            name: 'showChat',
+            title: 'Click to eyechat and show boxchat',
+            data: {}
+        };
+
+        __vnpFunction.postMessage(dataMsg);
+    },
+
+    /**
+     * hide boxchat
+     */
+    hideChat: function () {
+        // bắn vào trong để gọi bật boxchat lên
+        var dataMsg = {
+            name: 'hideChat',
+            title: 'ẩn boxchat xuống',
+            data: {}
+        };
+
+        __vnpFunction.postMessage(dataMsg);
+    },
+
+
+    /**
+     * show eyechat
+     */
+    showEyeChat: function (data) {
+        if (typeof data.src != 'undefined'){
+            var elmImg = document.createElement('img');
+            elmImg.src = data.src;
+            elmImg.setAttribute('onClick', '__vnpFunction.showChat(); vnpEvent.guestClickEyeChat();');
+
+            var elmClose = document.createElement('span');
+            elmClose.innerHTML = '&#10005;';
+            elmClose.setAttribute('class', 'vnp_close_eyechat');
+            elmClose.style.cssText = 'position: absolute; right: 0;top: 0;display: none;width: 20px;height: 20px;text-align: center;line-height: 21px;border-radius: 10px;cursor: pointer;font-weight: bold;color: #fff;text-shadow: 0 1px 2px rgba(0,0,0,0.4);background-color: #c1c1c1;font-size:10px !important;';
+            elmClose.onclick = function () {
+                this.parentElement.remove();
+            };
+
+            if (document.getElementById('vnp_eyechat').innerHTML == ''){
+                var div_eyechat = document.getElementById('vnp_eyechat');
+                div_eyechat.appendChild(elmImg);
+                div_eyechat.appendChild(elmClose);
+            }
+        }
+    },
+
+    add_vnp_visible: function () {
+        document.getElementById('vnp_eyechat').className = 'vnp_visible';
+        document.getElementById('vnp_chat').className = 'vnp_visible';
+    },
+    remove_vnp_visible: function () {
+        document.getElementById('vnp_eyechat').className = '';
+        document.getElementById('vnp_chat').className = '';
+    },
+
+    /**
+     * process visible chat
+     */
+    visible_chat: function (obj) {
+        if('visible' in obj){
+            if (!obj.visible){
+                this.remove_vnp_visible();
+            }else{
+                this.add_vnp_visible();
+            }
+        }
+    },
+
+    /**
+     * show message
+     * when boxchat hide
+     *  - owner website chat then show message or show badge cound message
+     */
+    showBadge: function () {
+        
+    },
+
+    /**
+     * Thông báo thành công khi gửi phone lên
+     */
+    successSavePhone: function(){
+        document.getElementById('vnp_phone_success').innerHTML ='Success';
+        if(typeof clientSavePhone === 'function'){
+            clientSavePhone();
+        }
+        //setTimeout(function () {
+            __vnpFunction.closePhone();
+        //}, 3000);
+    },
+
+    /**
+     * Lưu số điện thoại
+     */
+    savePhone: function () {
+        var _phone = document.getElementById('vnp_text_phone').value.trim() || '';
+        var _text_req = document.getElementById('vnp_text_require').value.trim() || '';
+        var _err = document.getElementById('vnp_phone_err');
+        var validate_phone = /^([0-9]{10,11})$/;
+        if (_phone == ''){
+            document.getElementById('vnp_phone_err').innerHTML ='Bạn chưa nhập số điện thoại [Phone number empty]';
+            return false;
+        }
+        if(!_phone.match(validate_phone)){
+            document.getElementById('vnp_phone_err').innerHTML = 'Sai định dạng [Wrong format]';
+            return false;
+        }
+        var dataPhone = {
+            name: 'save_phone',
+            title: 'Lưu số điện thoại',
+            data: {
+                phone: _phone,
+                url: document.location.href,
+                title: document.title,
+                text_req: _text_req
+            }
+        };
+        __vnpFunction.postMessage(dataPhone);
+
+        vnpEvent.callEvent({
+            category: 'Send phone',
+            action: 'Send',
+            label: 'Send phone'
+        });
+
+        // Gửi thông báo thành công
+        __vnpFunction.successSavePhone();
+
+    },
+
+    closePhone: function () {
+        document.getElementById('vnp_phone').remove();
+    },
+
+    /**
+     * hiển thị popup xin số điện thoại
+     */
+    showPopupPhone: function (data) {
+        // check xem đã hiển thị chưa vì safari không cho lưu cookie nên phải check thêm ở đây
+        var show_popup = __vnpFunction.getCookie('vnp_popup_phone') || 0;
+        if (show_popup != 0) return;
+
+        var vnpPhone = document.createElement('div');
+        vnpPhone.setAttribute('id', 'vnp_phone');
+        var textcss = 'z-index:2147483648;';
+        vnpPhone.style.cssText = textcss +'position:fixed; left:0; top:0; width:100%;height:100%;background-color: rgba(0,0,0,0.2);';
+        var _title = document.title || '';
+        var _color = data.color.val || '#0784E9';
+        var _tip = data.title.val || 'Hỗ trợ 247';
+        var _message = data.text.val || ''; // tin nhắn chào
+        var _phone_holder = data.input.val || '';
+        var _phone_holder_req = ('require' in data)? data.require.val : '';
+        var _button = data.button.val || '';
+        var _show_brand = data.show_brand;
+        if (_message != '' && _button != ''){
+            _message = _message.replace('{tieu_de}', '<b style="color: '+ _color +';">'+_title+'</b>');
+            var _html = '';
+            _html += '<div style="margin: 100px auto;width: 90%;max-width: 400px;background-color: #fff;overflow: hidden;border-radius: 5px;box-sizing: border-box; position: relative;">';
+                _html += '<h4 style="padding: 10px !important;font-size: 15px !important;background-color: '+ _color +';color: #fff;margin: 0 !important;text-transform: capitalize;font-weight: normal;">'+ _tip +'</h4>';
+                _html += '<div style="padding: 25px 30px 15px 30px !important;">';
+                    _html += '<p style="font-size: 14px;line-height: 20px;margin-bottom: 20px !important;color: #4c4c4c;">'+ _message +'</p>';
+                    _html += '<div style="margin-bottom: 10px;"><input id="vnp_text_phone" name="phone" style="width: 100%;border: 1px dashed #999;border-radius: 4px;padding: 3px 10px;box-sizing: border-box;margin-bottom: 0px !important;" type="tel" placeholder="'+_phone_holder+'"></div>';
+                    _html += '<div id="vnp_phone_err" style="margin-bottom: 10px; color:#ff0000; font-size: 13px;"></div>';
+                    _html += '<div style="margin-bottom: 10px;"><textarea id="vnp_text_require" name="require" style="width: 100%;border: 1px dashed #999;border-radius: 4px;padding: 3px 10px;box-sizing: border-box;margin-bottom: 0px !important;font-family: arial;" placeholder="'+_phone_holder_req+'"></textarea></div>';
+                    _html += '<p style="margin-bottom: 15px;"><input onclick="__vnpFunction.savePhone()" style="cursor: pointer;margin-right: 5px !important;padding: 6px 10px !important;font-size: 14px !important;background-color: '+ _color +';color: #fff;border: none;border-radius: 3px; margin-bottom: 0px !important;display: inline-block !important;" type="button" value="'+ _button +'" /><input style="cursor: pointer;margin-right: 5px;padding: 2px 5px !important;font-size: 14px !important;border: none;background-color: transparent;color:#111 !important;margin-right: 0px !important; margin-bottom: 0px !important;display: inline-block !important;" onclick="__vnpFunction.closePhone()" title="Đóng" type="button" value="Close"/></p>';
+                    _html += '<p style="margin-bottom: 15px;"><span style="color: green;font-size: 14px;line-height: 20px;" id="vnp_phone_success"></span></p>';
+                _html += '</div>';
+                if (_show_brand){
+                    _html += '<a href="/?utm_campaign=popup_phone&utm_medium=referral&utm_source=popup_phone" style=" position: absolute;right: 10px;bottom: 10px;font-size: 12px !important;padding: 0px 5px !important;height: 15px !important;line-height: 15px !important;display: inline-block !important;border-radius: 5px 0 0 0;cursor: pointer;color: #808080 !important;">vChat.vn</a>';
+                }
+            _html += '</div>';
+            vnpPhone.innerHTML  = _html;
+            document.body.appendChild(vnpPhone);
+        }
+
+        // lưu vào cookie để không hiển thị trong ngày
+        var _obj_cookie = {
+            name : 'vnp_popup_phone',
+            value : '1',
+            expires : 1,
+            type : 'd',
+        };
+        __vnpFunction.setCookie(_obj_cookie);
+
+
+    },
+
+    /*
+    thay đổi title
+     */
+    changeTitle: function () {
+        __change_title = setInterval(function () {
+            if (document.title == __default_title){
+                document.title = __new_title;
+            }else {
+                document.title = __default_title;
+            }
+        }, 1000)
+    },
+    closeChangeTitle: function () {
+        clearInterval(__change_title);
+        document.title = __default_title;
+    },
+    setNewTitle: function (obj) {
+        __new_title = obj.msg;
+        __vnpFunction.closeChangeTitle();
+        __vnpFunction.changeTitle();
+    },
+
+};
+
+/**
+ * Event GA, GTM
+ */
+
+var vnp_event_name = 'vChat';
+
+var vnpEvent = {
+
+    /* Call all event of GA, GTA */
+    callEvent:function (data) {
+        var _category = data.category;
+        var _action = data.action;
+        var _label = data.label;
+
+        /* bắn lên google */
+        if(typeof ga === 'function'){
+            ga('send', 'event', _category, _action, _label);
+        }
+        /* bắn lên gtag */
+        if(typeof gtag === 'function'){
+            gtag('event', _action, { 'event_category': _category, 'event_label': _label, 'value': '' });
+        }
+        /* bắn lên GTM */
+        if (typeof dataLayer === 'object'){
+            dataLayer.push({ 'event': vnp_event_name, 'category': _category, 'action': _action, 'label': _label, 'value': '' })
+        }
+
+        /* check bắn lên server của google ads qua gtag gọi hàm của bên website */
+        switch(_action){
+            case 'Auto': // auto open boxchat
+                if(typeof gtag_report_convertion_autoOpen === 'function'){
+                    gtag_report_convertion_autoOpen();
+                }
+                break;
+            case "Click": // guest click open boxchat
+                if(typeof gtag_report_convertion_openchat === 'function'){
+                    gtag_report_convertion_openchat();
+                }
+                break;
+            case "Start Chat": // guest start chat
+                if(typeof gtag_report_convertion_startChat === 'function'){
+                    gtag_report_convertion_startChat();
+                }
+                break;
+            case "Stop Chat": // guest stop chat
+                if(typeof gtag_report_convertion_stopChat === 'function'){
+                    gtag_report_convertion_stopChat();
+                }
+                break;
+            case "Send Message": // guest send message
+                if(typeof gtag_report_convertion_sendchat === 'function'){
+                    gtag_report_convertion_sendchat();
+                }
+                break;
+            case "Send": // guest send survey
+                if(typeof gtag_report_convertion_sendSurvey === 'function'){
+                    gtag_report_convertion_sendSurvey();
+                }
+                break;
+        }
+
+        /* Bắn lên facebook pixel*/
+        /* bắn lên facebook */
+        if(typeof fbq === 'function'){
+            fbq('trackCustom', 'vChat', data);
+        }
+    },
+
+    /* show vchat online in website */
+    loadvChat: function () {
+        var data = {
+            category : 'vChat Online Loaded',
+            action : 'Loaded',
+            label : 'Hiển thị vChat lên website',
+        };
+        this.callEvent(data);
+    },
+
+    /* show vchat offline in website */
+    loadvChatOffline: function () {
+        var data = {
+            category : 'vChat Offline Loaded',
+            action : 'Loaded',
+            label : 'Hiển thị vChat offline lên website',
+        };
+        this.callEvent(data);
+    },
+
+    /* auto open boxchat */
+    autoOpenBoxchat: function () {
+        var data = {
+            category : 'Auto Open vChat',
+            action : 'Auto',
+            label : 'Tự động bật boxchat',
+        };
+        this.callEvent(data);
+    },
+
+    /* user open boxchat */
+    guestOpenBoxchat: function () {
+        var data = {
+            category : 'Guest Open vChat',
+            action : 'Click',
+            label : 'Khách hàng bật boxchat',
+        };
+        this.callEvent(data);
+    },
+
+    /* start conversation */
+    guestStartConversation: function () {
+        var data = {
+            category : 'Guest Start Chat',
+            action : 'Start Chat',
+            label : 'Khách hàng bắt đầu cuộc chat',
+        };
+        this.callEvent(data);
+    },
+
+    /* User stop conversation */
+    guestStopConversation: function () {
+        var data = {
+            category : 'Guest Stop Chat',
+            action : 'Stop Chat',
+            label : 'Khách hàng kết thúc cuộc chat',
+        };
+        this.callEvent(data);
+    },
+    
+    /* send message */
+    guestSendMessage: function () {
+        var data = {
+            category : 'Guest Send Message',
+            action : 'Send Message',
+            label : 'Khách hàng gửi tin nhắn',
+        };
+        this.callEvent(data);
+    },
+    
+    /* user click eye chat */
+    guestClickEyeChat: function () {
+        var data = {
+            category : 'Guest Click Eye Chat',
+            action : 'Click',
+            label : 'Khách hàng click vào ảnh mời chat',
+        };
+        this.callEvent(data);
+    },
+
+    /* user send survery after chat */
+    guestSendSurvey: function () {
+        var data = {
+            category : 'Guest Send Survey',
+            action : 'Send',
+            label : 'Khách hàng gửi khảo sát sau chat',
+        };
+        this.callEvent(data);
+    }
+
+};
+
+/**
+ *
+ * listten event in iframe post out
+ */
+window.addEventListener('message', function (event) {
+    var vnp_event = event.data || '';
+    if (typeof  vnp_event == 'object'){
+        var vnp_name = vnp_event.name || '';
+        var vnp_data = vnp_event.data || {};
+        switch (vnp_name){
+            // owner ban customer 03 day
+            case "banned":
+                break;
+
+            // thay đổi kích thước boxchat
+            case 'change_size':
+                __vnpFunction.changeSize(vnp_data);
+                break;
+
+            // thay đổi vị trí boxchat
+            case 'change_position':
+                __vnpFunction.changePosition(vnp_data);
+                break;
+
+            // hiển thị eyechat nếu được cài đặt
+            case 'show_eyechat':
+                __vnpFunction.showEyeChat(vnp_data);
+                break;
+
+            // hiển thị popup xin số điện thoại
+            case 'popupphone':
+                __vnpFunction.showPopupPhone(vnp_data);
+                break;
+
+            // thay đổi title
+            case 'change_title':
+                __vnpFunction.setNewTitle(vnp_data);
+                break;
+
+            // trạng thái nút chat hiển thị hay không
+            case 'visible_chat':
+                __vnpFunction.visible_chat(vnp_data);
+                break;
+
+            // set guest id vào trình duyệt
+            case 'set_guest_id':
+                if (typeof vnp_data == 'object'){
+                    var gid = parseInt (vnp_data.guest_id) || '';
+                    if (gid > 0){
+                        __vnpFunction.setGuestId(gid);
+                    }
+
+                }
+                break;
+
+            // load vchat
+            case 'load_vchat':
+                vnpEvent.loadvChat();
+                break;
+
+            // load vchat offline
+            case 'load_vchat_offline':
+                vnpEvent.loadvChatOffline();
+                break;
+
+            // auto open vchat
+            case 'auto_open':
+                vnpEvent.autoOpenBoxchat();
+                break;
+
+            // guest open
+            case 'guest_open':
+                vnpEvent.guestOpenBoxchat();
+                break;
+
+            // guest start chat
+            case 'guest_start_chat':
+                vnpEvent.guestStartConversation();
+                break;
+
+            // guest stop conversation
+            case 'guest_stop_chat':
+                vnpEvent.guestStopConversation();
+                break;
+
+            // khách gửi tin nhắn
+            case 'send_message':
+                vnpEvent.guestSendMessage();
+                break;
+
+            // load vchat
+            case 'click_eye_chat':
+                vnpEvent.guestClickEyeChat();
+                break;
+
+            // send survey
+            case 'send_survey':
+                vnpEvent.guestSendSurvey();
+                break;
+
+            // send survey
+            case 'embed':
+                __vnpFunction.processSettingEmbed(vnp_data);
+                break;
+
+        }
+    }
+});
+
+
+
+/* khởi tạo js */
+//__vnpFunction.init();
+if (__vnp.code == 900 || __vnp.code == 46){
+    callTransport();
+}else{
+    __vnpFunction.init();
+}
+
+/* add 1 số css vào website */
+var _css = document.createElement('style');
+_css.type = 'text/css';
+var _styles = '#vnp_eyechat img { max-width: 100%; max-height: 100%; display: block;}';
+_styles += '#vnp_eyechat:hover .vnp_close_eyechat {display: block !important;}';
+_styles += '.vnp_visible {visibility: hidden;}';
+
+
+if (__vnpDefault.mobile){
+    _styles += '#vnp_eyechat img { max-width: 150px !important;}';
+    _styles += '#vnp_eyechat .vnp_close_eyechat {display: block !important;}';
+}
+
+_css.appendChild(document.createTextNode(_styles));
+document.getElementsByTagName("head")[0].appendChild(_css);

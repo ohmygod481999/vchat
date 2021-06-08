@@ -1,0 +1,414 @@
+.benafit .colum.yellow input[type="email"] {
+    outline: none;
+    box-shadow: 0 0 0 0;
+}
+
+/*benafits*/
+.benafits div.colum {
+    background-color: white;
+    padding-right: 4rem;
+    padding-left: 4rem;
+    padding-top: 4rem;
+    border-radius: .5rem;
+    height: auto;
+}
+
+.benafits div.number {
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+    background-color: #1d86f3;
+    border-radius: 50%;
+}
+
+.benafits div.number p {
+    padding-top: 6px;
+    line-height: 1.35;
+    letter-spacing: -.02em;
+    font-weight: 700;
+    font-size: 1.485rem;
+    color: white;
+}
+
+.benafits div.container h2 {
+    font-size: 35px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -.02rem;
+}
+
+.benafits div.container p.content {
+    font-weight: 400;
+    font-size: 1rem;
+    margin-bottom: 3rem;
+    padding-bottom: 0;
+    text-align: left;
+}
+
+.benafits div.container img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+span.underline:after {
+    content: "";
+    position: absolute;
+    /* display: block; */
+    width: 100%;
+    height: .3em;
+    background-image: url(../images/daugachduoivang.svg);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: bottom;
+    left: 0;
+    bottom: -.1em;
+    z-index: 9;
+}
+
+/*container*/
+.benafits div.container {
+    max-width: 82.0rem;
+}
+
+.benafits {
+    background-color: #f6f6f7;
+    padding-bottom: 15rem;
+}
+
+/*benafit one*/
+
+.benafit.one {
+    padding: 0 15px;
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+    max-width: 72.0rem;
+    margin: 0 auto;
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+
+.benafit.one div.right img {width: 100%;}
+
+.benafit.one div.right {
+    padding: 0 10px;
+}
+
+.benafit.one h1 {
+    margin-bottom: 2rem;
+    font-size: 50px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -.02em;
+}
+
+.benafit.one h1 span {
+    font-size: 50px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    position: relative;
+    z-index: 8;
+}
+
+.benafit.one .endow {
+    text-align: left;
+}
+/*benafit two*/
+.four_colums {
+    grid-template-columns: repeat(2, 1fr);
+    display: grid;
+    grid-gap: 3rem 2rem;
+    margin-bottom: 4rem;
+}
+
+.benafit.two p.title {
+    margin-bottom: 2rem;
+    font-size: 50px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -.035em;
+}
+
+
+.colum.yellow {
+    background: #ffd000 !important;
+}
+
+.colum.yellow .endow p {
+    margin-bottom: 20px !important;
+}
+
+.benafit.two {
+    padding-bottom: 4rem;
+}
+
+.benafit.two .form_signup {
+    display: flex;
+}
+
+/*benafit three*/
+.benafit.three p {
+    margin-bottom: 3rem;
+    font-weight: 300;
+    font-size: 20px;
+}
+
+.benafit.three div.container {
+    text-align: center;
+}
+
+/*benafit four*/
+.benafit.four {
+    padding-top: 6rem;
+}
+
+.benafit.four div.bigger {
+    margin-bottom: 4rem;
+}
+
+.benafit.four div.box {
+    grid-template-columns: repeat(2, 1fr);
+    display: grid;
+    grid-gap: 3rem 2rem;
+    background-color: white;
+    align-items: center;
+    border-radius: .5rem;
+}
+
+.benafit.four div.bigger img {
+    max-width: 100% !important;
+}
+
+.bigger div.left {
+    margin-bottom: 0;
+    margin-left: 4rem;
+    margin-top: 4rem;
+    margin-right: 5rem;
+    padding-right: 5rem;
+}
+
+.benafit.four h2 {
+    margin-bottom: 1rem;
+}
+
+.benafit.four .six_colum {
+    grid-template-columns: repeat(2,1fr);
+    display: grid;
+    grid-gap: 3rem 2rem;
+    margin-bottom: 4rem;
+}
+
+.someone {
+    max-width: 22rem;
+    margin-bottom: 4rem;
+    display: flex;
+}
+
+div.someone img {
+    max-width: 3.5rem !important;
+}
+
+.someone p {
+    margin-bottom: 0;
+}
+
+.six_colum div.title {
+    font-size: 2.587464rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -.0em;
+    margin-bottom: 1rem;
+}
+
+/*benafit five*/
+.benafit.five div.box {
+    grid-template-columns: repeat(2, 1fr);
+    display: grid;
+    grid-gap: 3rem 2rem;
+    background-color: white;
+    align-items: center;
+}
+
+.benafit.five div.container {
+    max-width: 100%;
+    padding: 0;
+}
+
+.benafit.five img {
+    max-width: 100% !important;
+}
+
+.benafit.five div.number {
+    width: 45px;
+    height: 45px;
+    margin-bottom: 2rem;
+    border-radius: 50%;
+    background-color: #ffd000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.benafit.five div.number p {
+    font-size: 1.485rem;
+    line-height: 1.35;
+    letter-spacing: -.02em;
+    font-weight: 700;
+    margin: 0;
+}
+
+.benafit.five h2 {
+    font-size: 2.587464rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -.03em;
+    margin-bottom: 1rem;
+}
+
+.benafit.five {
+    padding: 0;
+    max-width: 80rem;
+    margin: auto;
+    overflow: hidden;
+    clear: both;
+    margin-top: -250px;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, .1), 0 1px 2px 0 rgba(0, 0, 0, .06);
+    border-radius: .5rem;
+}
+
+.benafits p.endow span {
+    font-size: .875rem;
+}
+
+/*end*/
+span.underline:after {
+    content: "";
+    position: absolute;
+    display: block;
+    width: 100%;
+    height: .3em;
+    background-image: url(../images/daugachduoivang.svg);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: bottom;
+    left: 0;
+    bottom: -.1em;
+    z-index: -1;
+}
+
+span.underline {
+    position: relative;
+}
+
+.benafit.one .left {
+    width: 36rem;
+}
+
+.benafit.three .imgbranch {
+    grid-template-columns: repeat(10, 1fr);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+/*responsive*/
+@media (max-width: 1000px) {
+    /*1*/
+    .benafit.one {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    .benafit.one .endow {
+        text-align: center;
+    }
+    .benafit.one h1 {
+        font-size: 2rem;
+    }
+
+    .benafit.one h1 span {
+        font-size: 2rem;
+    }
+    .benafit.one {
+        flex-wrap: wrap;
+    }
+
+    .benafit.one div.right {
+        margin: auto;
+        margin-top: 3rem;
+    }
+    /*    2*/
+    .four_colums {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    .benafits div.container h2 {
+        font-size: 2rem;
+    }
+
+    .benafits div.colum {
+        padding: 4rem 2rem;
+    }
+
+    .benafits div.container p.content {
+        font-size: 1rem;
+    }
+
+    .benafit.four .six_colum {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    .six_colum div.title {
+        font-size: 2rem;
+    }
+
+    .someone {
+        flex-wrap: wrap;
+    }
+
+    .benafits div.container img {
+    }
+
+    .benafit.four div.box, .benafit.five div.box  {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .bigger div.left {
+        padding: 0;
+        margin: 4rem 2rem 2rem;
+    }
+
+    .benafit.two p.title {
+        font-size: 2rem;
+    }
+    /*5*/
+    .benafit.five h2 {
+        font-size: 2rem;
+    }
+
+    .benafit.five p.content {
+        text-align: left;
+        font-size: 1.1rem;
+    }
+
+}
+
+@media (max-width: 1300px) {
+    .benafit.five {
+        margin-left: 15px;
+        margin-right: 15px;
+    }
+}
+
+
+.imgpicture img {max-width: 100%;max-height: 200px;}
+
+.imgpicture {
+    margin: auto;
+    max-width: 100%;
+}
